@@ -15,8 +15,9 @@ Welcome to the Programmer's Secret Santa!
 4.  **如何參加 (How to Join)**:
     - <a href="https://github.com/gdg-kh/SantaCode" style="color: white;">將本專案 Fork 到你的 GitHub。</a>
     - 在 `submissions/` 下建立一個你的 **GitHub ID** 資料夾 (e.g., `submissions/torvalds/`).
-    - 放入你的程式碼 (e.g., `tree.py`).
-    - 發送 Pull Request。
+3.  **Write Code**: 放入你的程式碼 (e.g., `tree.py`)。
+    *你可以參考 [submissions/example-santa/](submissions/example-santa/) 裡面的多語言範例檔案。*
+4.  **Pull Request**: 發送 Pull Request。等待綠色勾勾 ✅。
 
 ## 🧪 本地測試 (Local Test)
 
