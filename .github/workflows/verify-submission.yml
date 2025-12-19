@@ -2,52 +2,12 @@ name: Verify Submission
 
 on:
   pull_request:
-    paths:
-      - 'submissions/**'
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Check Submission Status
-        run: |
-          # Read status from config using grep (simple & fast)
-          STATUS=$(grep "accepting_submissions:" config/event.yml | awk '{print $2}')
-          
-          if [ "$STATUS" == "false" ]; then
-            echo "⛔️ SUBMISSIONS ARE CLOSED! ⛔️"
-            echo "The 'accepting_submissions' flag in config/event.yml is set to false."
-            echo "Please try again next year!"
-            exit 1
-          fi
-          echo "✅ Submissions are OPEN."
-
-      - name: Validate User Identity (One Person One Folder)
-        if: steps.files.outputs.has_files == 'true'
-        run: |
-          PR_USER="${{ github.actor }}"
-          FILES="${{ steps.files.outputs.files }}"
-          
-          echo "Verifying that $PR_USER is only touching their own folder..."
-          
-          while read -r file; do
-            [ -z "$file" ] && continue
-            TARGET_USER=$(echo "$file" | cut -d'/' -f2)
-            
-            if [ "${TARGET_USER,,}" != "${PR_USER,,}" ]; then
-              echo "❌ ERROR: Identity Mismatch!"
-              echo "You are logged in as '$PR_USER', but you are trying to submit to '$TARGET_USER'."
-              exit 1
-            fi
-          done <<< "$FILES"
-          echo "✅ Identity Verified: Folder matches GitHub ID."
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.13'
 
       - name: Identify Changed Files
         id: files
@@ -57,39 +17,80 @@ jobs:
           git fetch origin master
           # --diff-filter=d excludes deleted files
           CHANGED_FILES=$(git diff --name-only --diff-filter=d origin/master HEAD | grep '^submissions/' | grep -v '^submissions/example-santa/' | grep -E '\.(py|js|go|rb|sh|java|kt|swift|c|cpp|cs|rs)$' || true)
-          
+
           if [ -z "$CHANGED_FILES" ]; then
             echo "No submission files detected (or only example files)."
+            echo "✅ This PR does not modify submissions, skipping verification."
             echo "has_files=false" >> $GITHUB_OUTPUT
           else
             echo "Detected files:"
             echo "$CHANGED_FILES"
-            
+
             # Handle multi-line output safely
             echo "files<<EOF" >> $GITHUB_OUTPUT
             echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            
+
             echo "has_files=true" >> $GITHUB_OUTPUT
           fi
+
+      - name: Check Submission Status
+        if: steps.files.outputs.has_files == 'true'
+        run: |
+          # Read status from config using grep (simple & fast)
+          STATUS=$(grep "accepting_submissions:" config/event.yml | awk '{print $2}')
+
+          if [ "$STATUS" == "false" ]; then
+            echo "⛔️ SUBMISSIONS ARE CLOSED! ⛔️"
+            echo "The 'accepting_submissions' flag in config/event.yml is set to false."
+            echo "Please try again next year!"
+            exit 1
+          fi
+          echo "✅ Submissions are OPEN."
+
+      - name: Set up Python
+        if: steps.files.outputs.has_files == 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Validate User Identity (One Person One Folder)
+        if: steps.files.outputs.has_files == 'true'
+        run: |
+          PR_USER="${{ github.actor }}"
+          FILES="${{ steps.files.outputs.files }}"
+
+          echo "Verifying that $PR_USER is only touching their own folder..."
+
+          while read -r file; do
+            [ -z "$file" ] && continue
+            TARGET_USER=$(echo "$file" | cut -d'/' -f2)
+
+            if [ "${TARGET_USER,,}" != "${PR_USER,,}" ]; then
+              echo "❌ ERROR: Identity Mismatch!"
+              echo "You are logged in as '$PR_USER', but you are trying to submit to '$TARGET_USER'."
+              exit 1
+            fi
+          done <<< "$FILES"
+          echo "✅ Identity Verified: Folder matches GitHub ID."
 
       - name: Run Safety Check & Verification
         if: steps.files.outputs.has_files == 'true'
         run: |
           # 針對每一個變更的檔案執行 runner
           FILES="${{ steps.files.outputs.files }}"
-          
+
           while read -r file; do
             [ -z "$file" ] && continue
             echo "---------------------------------------------------"
             echo "Testing Submission: $file"
             echo "---------------------------------------------------"
-            
+
             # 1. 執行 Runner (會用 Docker 跑)
             python3 core/runner.py "$file" > output.txt
-            
+
             cat output.txt
-            
+
             # 2. 驗證 Output 是否像聖誕樹
              cat output.txt | python3 challenges/2025-tree/validator.py
           done <<< "$FILES"
