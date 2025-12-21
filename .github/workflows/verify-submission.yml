@@ -15,6 +15,18 @@ jobs:
           # 找出這一次 PR 新增或修改的程式碼檔案
           # 使用 git diff 找出 submissions/ 下的變更
           git fetch origin master
+
+          # Check for unauthorized file changes (Security: Restrict to submissions/ folder)
+          INVALID_FILES=$(git diff --name-only origin/master HEAD | grep -v '^submissions/' || true)
+          if [ -n "$INVALID_FILES" ]; then
+            echo "❌ ERROR: You are only allowed to modify files in the 'submissions/' directory."
+            echo "❌ 錯誤：您只能修改 'submissions/' 資料夾內的檔案。"
+            echo "❌ エラー：'submissions/' ディレクトリ内のファイルのみ変更可能です。"
+            echo "The following files are not allowed / 以下檔案不被允許 / 以下のファイルは許可されていません:"
+            echo "$INVALID_FILES"
+            exit 1
+          fi
+
           # --diff-filter=d excludes deleted files
           CHANGED_FILES=$(git diff --name-only --diff-filter=d origin/master HEAD | grep '^submissions/' | grep -v '^submissions/example-santa/' | grep -E '\.(py|js|go|rb|sh|java|kt|swift|c|cpp|cs|rs)$' || true)
 
