@@ -36,7 +36,6 @@ class Program
 
         Console.SetCursorPosition(0, size - 1);
         Console.CursorVisible = true;
-        Console.ReadKey();
     }
 
     static void DrawNoise()
